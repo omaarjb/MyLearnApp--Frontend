@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 export default function RoleSelectionPage() {
-  const { isLoaded, user } = useUser()
+  const { isLoaded, user } = useUser()  // Removed updateUser from destructuring
   const [role, setRole] = useState("student")
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -22,18 +22,48 @@ export default function RoleSelectionPage() {
     setIsSubmitting(true)
     setError(null)
 
+    if (!user) {
+      setError("User not loaded. Please refresh the page.")
+      setIsSubmitting(false)
+      return
+    }
+
     try {
-      // Use unsafeMetadata for role storage
-      await user.update({
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
+      // 1. First update backend
+      const response = await fetch("http://localhost:8080/api/user/update-role", {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clerkId: user.id,
           role: role,
-        }
+        }),
       })
-      router.push("/quiz")
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || "Failed to save role to backend")
+      }
+
+      // 2. Then update Clerk metadata using user.update()
+      try {
+        await user.update({
+          unsafeMetadata: {
+            ...(user.unsafeMetadata || {}), // Preserve existing metadata
+            role: role,
+          }
+        })
+        
+        // Redirect only after both updates succeed
+        router.push("/quiz")
+      } catch (updateError) {
+        console.error("Clerk metadata update failed:", updateError)
+        throw new Error(`Failed to update Clerk profile: ${updateError.message || 'Unknown error'}`)
+      }
     } catch (error) {
-      console.error("Error updating role:", error)
-      setError("Failed to save role. Please try again.")
+      console.error("Error in role update process:", error)
+      setError(error.message || "Failed to save role. Please try again.")
     } finally {
       setIsSubmitting(false)
     }

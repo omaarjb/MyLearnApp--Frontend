@@ -109,16 +109,16 @@ export default function Navbar() {
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
           </a>
 
-          {/* Only show "Créer un Quiz" if user is NOT a student */}
           {isLoaded && userRole && !isStudent && (
-            <a
-              href="#"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
-            >
-              Créer un Quiz
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
-            </a>
-          )}
+  <a
+    href="/create-quiz" // ✅ use real path
+    className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
+  >
+    Créer un Quiz
+    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
+  </a>
+)}
+
 
           <a
             href="#"
