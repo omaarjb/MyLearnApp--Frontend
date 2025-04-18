@@ -8,124 +8,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
-import { CheckCircle, XCircle, Clock, Award, BookOpen, BarChart3, Brain, Zap, Target } from "lucide-react"
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  Award,
+  BookOpen,
+  BarChart3,
+  Brain,
+  Zap,
+  Target,
+  User,
+  Search,
+  Filter,
+  X,
+} from "lucide-react"
 import Navbar from "@/components/navbar"
 import Confetti from "react-confetti"
 import { useWindowSize } from "@/hooks/use-windows-size"
-
-// Mock data - this would come from your Spring Boot backend
-const mockQuizzes = [
-  {
-    id: 1,
-    title: "Introduction à Java",
-    description: "Testez vos connaissances sur les bases de Java",
-    category: "Programmation",
-    difficulty: "Débutant",
-    icon: "Brain",
-    color: "from-emerald-500 to-teal-600",
-    questions: [
-      {
-        id: 1,
-        text: "Quelle est la syntaxe correcte pour déclarer une variable entière en Java?",
-        options: [
-          { id: 1, text: "int x = 10;" },
-          { id: 2, text: "integer x = 10;" },
-          { id: 3, text: "var x = 10;" },
-          { id: 4, text: "Int x = 10;" },
-        ],
-        correctOptionId: 1,
-      },
-      {
-        id: 2,
-        text: "Comment déclarer un tableau en Java?",
-        options: [
-          { id: 1, text: "int[] numbers = new int[5];" },
-          { id: 2, text: "array numbers = new array(5);" },
-          { id: 3, text: "int numbers = new int[5];" },
-          { id: 4, text: "int numbers[] = int[5];" },
-        ],
-        correctOptionId: 1,
-      },
-      {
-        id: 3,
-        text: "Quelle est la méthode principale pour démarrer un programme Java?",
-        options: [
-          { id: 1, text: "public static void main(String[] args)" },
-          { id: 2, text: "public void main(String[] args)" },
-          { id: 3, text: "public static main(String[] args)" },
-          { id: 4, text: "static void main(String args)" },
-        ],
-        correctOptionId: 1,
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Spring Boot Fondamentaux",
-    description: "Les concepts essentiels de Spring Boot",
-    category: "Framework",
-    difficulty: "Intermédiaire",
-    icon: "Zap",
-    color: "from-violet-500 to-purple-600",
-    questions: [
-      {
-        id: 1,
-        text: "Quelle annotation est utilisée pour définir un contrôleur REST dans Spring Boot?",
-        options: [
-          { id: 1, text: "@RestController" },
-          { id: 2, text: "@Controller" },
-          { id: 3, text: "@APIController" },
-          { id: 4, text: "@RESTMapping" },
-        ],
-        correctOptionId: 1,
-      },
-      {
-        id: 2,
-        text: "Comment injecter une dépendance dans Spring Boot?",
-        options: [
-          { id: 1, text: "@Autowired" },
-          { id: 2, text: "@Inject" },
-          { id: 3, text: "@DependencyInject" },
-          { id: 4, text: "@Resource" },
-        ],
-        correctOptionId: 1,
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "React Avancé",
-    description: "Maîtrisez les concepts avancés de React",
-    category: "Frontend",
-    difficulty: "Avancé",
-    icon: "Target",
-    color: "from-rose-500 to-pink-600",
-    questions: [
-      {
-        id: 1,
-        text: "Qu'est-ce que le React Context API permet de faire?",
-        options: [
-          { id: 1, text: "Partager des données entre des composants sans prop drilling" },
-          { id: 2, text: "Optimiser les performances de rendu" },
-          { id: 3, text: "Créer des animations fluides" },
-          { id: 4, text: "Gérer les appels API" },
-        ],
-        correctOptionId: 1,
-      },
-      {
-        id: 2,
-        text: "Quel hook permet d'exécuter du code après le rendu?",
-        options: [
-          { id: 1, text: "useEffect" },
-          { id: 2, text: "useState" },
-          { id: 3, text: "useCallback" },
-          { id: 4, text: "useMemo" },
-        ],
-        correctOptionId: 1,
-      },
-    ],
-  },
-]
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { useAuth } from "@clerk/nextjs"
+import { useToast } from "@/hooks/use-toast"
 
 const getIconComponent = (iconName) => {
   switch (iconName) {
@@ -154,23 +58,49 @@ export default function QuizApp() {
   const [quizzes, setQuizzes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [filters, setFilters] = useState({
+    search: "",
+    difficulty: "",
+    category: "",
+    professor: "",
+  })
+  const [showFilters, setShowFilters] = useState(false)
+  const [currentAttemptId, setCurrentAttemptId] = useState(null)
+  const { userId } = useAuth()
+  const { toast } = useToast()
+
+  const uniqueDifficulties = [...new Set(quizzes.map((quiz) => quiz.difficulty))]
+  const uniqueCategories = [...new Set(quizzes.map((quiz) => quiz.category))]
+  const uniqueProfessors = [
+    ...new Set(
+      quizzes
+        .map((quiz) => (quiz.professor ? `${quiz.professor.firstName} ${quiz.professor.lastName}` : null))
+        .filter(Boolean),
+    ),
+  ]
 
   useEffect(() => {
-    const loadQuizzes = async () => {
+    const fetchQuizzes = async () => {
       try {
         setLoading(true)
-        //const data = await fetchQuizzes()
-        setQuizzes(mockQuizzes) // Use mockQuizzes for now
+        const response = await fetch("http://localhost:8080/api/quizzes")
+
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        setQuizzes(data)
         setError(null)
       } catch (err) {
         setError("Impossible de charger les quiz. Veuillez réessayer plus tard.")
-        console.error(err)
+        console.error("Error fetching quizzes:", err)
       } finally {
         setLoading(false)
       }
     }
 
-    loadQuizzes()
+    fetchQuizzes()
   }, [])
 
   useEffect(() => {
@@ -193,15 +123,48 @@ export default function QuizApp() {
     }
   }, [activeTab, timerActive])
 
-  const startQuiz = (quiz) => {
-    setSelectedQuiz(quiz)
-    setCurrentQuestion(0)
-    setSelectedOptions({})
-    setQuizCompleted(false)
-    setScore(0)
-    setTimer(0)
-    setTimerActive(true)
-    setActiveTab("quiz")
+  const startQuiz = async (quiz) => {
+    try {
+      setLoading(true)
+
+      // Start a new quiz attempt
+      const response = await fetch(
+        `http://localhost:8080/api/quiz-attempts/start?clerkId=${userId}&quizId=${quiz.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to start quiz attempt")
+      }
+
+      const data = await response.json()
+      setCurrentAttemptId(data.attemptId)
+
+      // Set up the quiz state
+      setSelectedQuiz(quiz)
+      setCurrentQuestion(0)
+      setSelectedOptions({})
+      setQuizCompleted(false)
+      setScore(0)
+      setTimer(0)
+      setTimerActive(true)
+      setActiveTab("quiz")
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to start quiz",
+        variant: "destructive",
+      })
+      console.error("Error starting quiz:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleOptionSelect = (questionId, optionId) => {
@@ -215,17 +178,36 @@ export default function QuizApp() {
     if (currentQuestion < selectedQuiz.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1)
     } else {
-      // Soumettre le quiz au backend
+      // Submit the quiz attempt
       try {
         setLoading(true)
-        //const result = await submitQuiz(selectedQuiz.id, selectedOptions)
-        const result = {
-          correctAnswers: selectedQuiz.questions.filter((q) => selectedOptions[q.id] === q.correctOptionId).length,
+
+        // Convert selectedOptions to the format expected by the API
+        // The API expects a map of questionId -> optionId
+        const responses = Object.entries(selectedOptions).reduce((acc, [questionId, optionId]) => {
+          acc[questionId] = optionId
+          return acc
+        }, {})
+
+        const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(responses),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to submit quiz attempt")
         }
+
+        const result = await response.json()
+
         setScore(result.correctAnswers)
         setQuizCompleted(true)
         setTimerActive(false)
-        setActiveTab("resultats") // Add this line to switch to results tab
+        setActiveTab("resultats")
 
         // Show confetti if score is good
         if (result.correctAnswers >= selectedQuiz.questions.length * 0.7) {
@@ -233,8 +215,12 @@ export default function QuizApp() {
           setTimeout(() => setShowConfetti(false), 5000)
         }
       } catch (err) {
-        setError("Erreur lors de la soumission du quiz")
-        console.error(err)
+        toast({
+          title: "Error",
+          description: err.message || "Failed to submit quiz",
+          variant: "destructive",
+        })
+        console.error("Error submitting quiz:", err)
       } finally {
         setLoading(false)
       }
@@ -251,6 +237,7 @@ export default function QuizApp() {
     setActiveTab("explorer")
     setSelectedQuiz(null)
     setQuizCompleted(false)
+    setCurrentAttemptId(null)
   }
 
   const getDifficultyColor = (difficulty) => {
@@ -265,6 +252,53 @@ export default function QuizApp() {
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
     }
   }
+
+  const handleFilterChange = (key, value) => {
+    setFilters({
+      ...filters,
+      [key]: value === "all" ? "" : value,
+    })
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      difficulty: "",
+      category: "",
+      professor: "",
+    })
+  }
+
+  const filteredQuizzes = quizzes.filter((quiz) => {
+    // Search filter
+    if (
+      filters.search &&
+      !quiz.title.toLowerCase().includes(filters.search.toLowerCase()) &&
+      !quiz.description.toLowerCase().includes(filters.search.toLowerCase())
+    ) {
+      return false
+    }
+
+    // Difficulty filter
+    if (filters.difficulty && quiz.difficulty !== filters.difficulty) {
+      return false
+    }
+
+    // Category filter
+    if (filters.category && quiz.category !== filters.category) {
+      return false
+    }
+
+    // Professor filter
+    if (
+      filters.professor &&
+      (!quiz.professor || `${quiz.professor.firstName} ${quiz.professor.lastName}` !== filters.professor)
+    ) {
+      return false
+    }
+
+    return true
+  })
 
   return (
     <div className="flex flex-col min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
@@ -315,64 +349,199 @@ export default function QuizApp() {
           )}
 
           <TabsContent value="explorer" className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, staggerChildren: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
-              {quizzes.map((quiz, index) => (
+            <div className="w-full mx-auto">
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Rechercher un quiz..."
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange("search", e.target.value)}
+                    className="pl-10 bg-white/80 dark:bg-gray-800/60"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/60"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filtres
+                  {(filters.difficulty || filters.category || filters.professor) && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                    >
+                      {Object.values(filters).filter(Boolean).length - (filters.search ? 1 : 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+
+              {showFilters && (
                 <motion.div
-                  key={quiz.id}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-white/90 dark:bg-gray-800/80 rounded-lg p-4 mb-6 backdrop-blur-sm"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-medium">Filtrer les quiz</h3>
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2">
+                      <X className="h-4 w-4 mr-1" />
+                      Effacer les filtres
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Difficulté</label>
+                      <Select
+                        value={filters.difficulty}
+                        onValueChange={(value) => handleFilterChange("difficulty", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Toutes les difficultés" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Toutes les difficultés</SelectItem>
+                          {uniqueDifficulties.map((difficulty) => (
+                            <SelectItem key={difficulty} value={difficulty}>
+                              {difficulty}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Catégorie</label>
+                      <Select value={filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Toutes les catégories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Toutes les catégories</SelectItem>
+                          {uniqueCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Professeur</label>
+                      <Select
+                        value={filters.professor}
+                        onValueChange={(value) => handleFilterChange("professor", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tous les professeurs" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous les professeurs</SelectItem>
+                          {uniqueProfessors.map((professor) => (
+                            <SelectItem key={professor} value={professor}>
+                              {professor}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {filteredQuizzes.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-16 bg-white/80 dark:bg-gray-800/60 rounded-lg backdrop-blur-sm"
+                >
+                  <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-xl font-medium mb-2">Aucun quiz trouvé</h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-6">
+                    Aucun quiz ne correspond à vos critères de recherche.
+                  </p>
+                  <Button variant="outline" onClick={clearFilters}>
+                    Réinitialiser les filtres
+                  </Button>
+                </motion.div>
+              ) : (
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  transition={{ duration: 0.5, staggerChildren: 0.1 }}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
-                  <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-white/80 backdrop-blur-sm dark:bg-gray-800/60">
-                    <CardHeader className={`bg-gradient-to-r ${quiz.color} text-white`}>
-                      <div className="flex justify-between items-center">
-                        <CardTitle className="flex items-center gap-2">
-                          <div className="p-2 bg-white/20 rounded-lg">{getIconComponent(quiz.icon)}</div>
-                          {quiz.title}
-                        </CardTitle>
-                      </div>
-                      <CardDescription className="text-white/80">{quiz.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between mb-4">
-                        <Badge
-                          variant="secondary"
-                          className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                        >
-                          {quiz.category}
-                        </Badge>
-                        <Badge variant="outline" className={getDifficultyColor(quiz.difficulty)}>
-                          {quiz.difficulty}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4 mt-4">
-                        <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                          <BookOpen className="h-4 w-4" />
-                          <span>{quiz.questions.length} questions</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                          <Clock className="h-4 w-4" />
-                          <span>~{quiz.questions.length * 30} sec</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="">
-                      <Button
-                        className={`w-full bg-gradient-to-r ${quiz.color} hover:shadow-lg hover:shadow-${quiz.color.split("-")[1]}-500/20`}
-                        onClick={() => startQuiz(quiz)}
-                      >
-                        Commencer le Quiz
-                      </Button>
-                    </CardFooter>
-                  </Card>
+                  {filteredQuizzes.map((quiz, index) => (
+                    <motion.div
+                      key={quiz.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-white/80 backdrop-blur-sm dark:bg-gray-800/60">
+                        <CardHeader className={`bg-gradient-to-r ${quiz.color} text-white`}>
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="flex items-center gap-2">
+                              <div className="p-2 bg-white/20 rounded-lg">{getIconComponent(quiz.icon)}</div>
+                              {quiz.title}
+                            </CardTitle>
+                          </div>
+                          <CardDescription className="text-white/80">{quiz.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                          <div className="flex justify-between mb-4">
+                            <Badge
+                              variant="secondary"
+                              className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                            >
+                              {quiz.category}
+                            </Badge>
+                            <Badge variant="outline" className={getDifficultyColor(quiz.difficulty)}>
+                              {quiz.difficulty}
+                            </Badge>
+                          </div>
+
+                          {/* Professor information */}
+                          {quiz.professor && (
+                            <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+                              <User className="h-4 w-4" />
+                              <span>
+                                Professeur : {quiz.professor.firstName} {quiz.professor.lastName}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-4 mt-4">
+                            <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+                              <BookOpen className="h-4 w-4" />
+                              <span>{quiz.questions.length} questions</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+                              <Clock className="h-4 w-4" />
+                              <span>
+                                {quiz.timeLimit
+                                  ? `${Math.floor(quiz.timeLimit / 60)}:${(quiz.timeLimit % 60).toString().padStart(2, "0")}`
+                                  : `~${quiz.questions.length * 30} sec`}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="">
+                          <Button
+                            className={`w-full bg-gradient-to-r ${quiz.color} hover:shadow-lg`}
+                            onClick={() => startQuiz(quiz)}
+                          >
+                            Commencer le Quiz
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </motion.div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="quiz">
@@ -413,7 +582,7 @@ export default function QuizApp() {
                             key={option.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.2, delay: option.id * 0.1 }}
+                            transition={{ duration: 0.2, delay: option.id * 0.05 }}
                             className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
                               selectedOptions[selectedQuiz.questions[currentQuestion].id] === option.id
                                 ? `border-${selectedQuiz.color.split("-")[1]}-500 bg-${selectedQuiz.color.split("-")[1]}-50 dark:bg-${selectedQuiz.color.split("-")[1]}-900/20`
@@ -477,14 +646,12 @@ export default function QuizApp() {
                   <CardContent className="pt-8">
                     <div className="text-center mb-8">
                       <motion.div
-                        className={`inline-flex items-center justify-center w-32 h-32 rounded-full bg-${selectedQuiz.color.split("-")[1]}-100 dark:bg-${selectedQuiz.color.split("-")[1]}-900/30 mb-4`}
+                        className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-800 mb-4"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
                       >
-                        <span
-                          className={`text-4xl font-bold text-${selectedQuiz.color.split("-")[1]}-600 dark:text-${selectedQuiz.color.split("-")[1]}-300`}
-                        >
+                        <span className="text-4xl font-bold text-gray-800 dark:text-gray-100">
                           {score}/{selectedQuiz.questions.length}
                         </span>
                       </motion.div>
@@ -520,7 +687,10 @@ export default function QuizApp() {
                     >
                       <h4 className="font-medium text-lg">Révision des questions:</h4>
                       {selectedQuiz.questions.map((question, index) => {
-                        const isCorrect = selectedOptions[question.id] === question.correctOptionId
+                        const selectedOption = question.options.find((o) => o.id === selectedOptions[question.id])
+                        const isCorrect = selectedOption?.correct === true
+                        const correctOption = question.options.find((o) => o.correct === true)
+
                         return (
                           <motion.div
                             key={question.id}
@@ -543,14 +713,11 @@ export default function QuizApp() {
                                   <p
                                     className={`${isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} font-medium`}
                                   >
-                                    Votre réponse:{" "}
-                                    {question.options.find((o) => o.id === selectedOptions[question.id])?.text ||
-                                      "Aucune réponse"}
+                                    Votre réponse: {selectedOption?.text || "Aucune réponse"}
                                   </p>
                                   {!isCorrect && (
                                     <p className="text-green-600 dark:text-green-400 font-medium mt-1">
-                                      Réponse correcte:{" "}
-                                      {question.options.find((o) => o.id === question.correctOptionId).text}
+                                      Réponse correcte: {correctOption?.text}
                                     </p>
                                   )}
                                 </div>
@@ -578,4 +745,3 @@ export default function QuizApp() {
     </div>
   )
 }
-
