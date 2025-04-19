@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -22,6 +22,7 @@ import {
   Search,
   Filter,
   X,
+  AlertTriangle,
 } from "lucide-react"
 import Navbar from "@/components/navbar"
 import Confetti from "react-confetti"
@@ -30,6 +31,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@clerk/nextjs"
 import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const getIconComponent = (iconName) => {
   switch (iconName) {
@@ -68,6 +78,11 @@ export default function QuizApp() {
   const [currentAttemptId, setCurrentAttemptId] = useState(null)
   const { userId } = useAuth()
   const { toast } = useToast()
+  const [showTimeExpiredDialog, setShowTimeExpiredDialog] = useState(false)
+  const [timeExpired, setTimeExpired] = useState(false)
+  const timeCheckIntervalRef = useRef(null)
+  const [timeLimit, setTimeLimit] = useState(0)
+  const [timeRemaining, setTimeRemaining] = useState(0)
 
   const uniqueDifficulties = [...new Set(quizzes.map((quiz) => quiz.difficulty))]
   const uniqueCategories = [...new Set(quizzes.map((quiz) => quiz.category))]
@@ -103,17 +118,71 @@ export default function QuizApp() {
     fetchQuizzes()
   }, [])
 
+  // Timer for quiz duration
   useEffect(() => {
     let interval = null
-    if (timerActive) {
+    if (timerActive && !timeExpired) {
       interval = setInterval(() => {
-        setTimer((timer) => timer + 1)
+        setTimer((prevTimer) => {
+          const newTimer = prevTimer + 1
+
+          // Update time remaining if we have a time limit
+          if (timeLimit > 0) {
+            const remaining = timeLimit - newTimer
+            setTimeRemaining(remaining)
+
+            // If time is up, trigger the time expired flow
+            if (remaining <= 0 && !timeExpired) {
+              handleTimeExpired()
+            }
+          }
+
+          return newTimer
+        })
       }, 1000)
     } else if (!timerActive && timer !== 0) {
       clearInterval(interval)
     }
     return () => clearInterval(interval)
-  }, [timerActive, timer])
+  }, [timerActive, timeLimit, timeExpired])
+
+  // Periodic check for time limit on the server
+  useEffect(() => {
+    // Set up interval to check time limit on server
+    if (currentAttemptId && timerActive && !timeExpired) {
+      // Clear any existing interval
+      if (timeCheckIntervalRef.current) {
+        clearInterval(timeCheckIntervalRef.current)
+      }
+
+      // Set new interval to check every 10 seconds
+      timeCheckIntervalRef.current = setInterval(async () => {
+        try {
+          const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/check-time`)
+
+          if (!response.ok) {
+            throw new Error("Failed to check time limit")
+          }
+
+          const data = await response.json()
+
+          if (data.timeExceeded && !timeExpired) {
+            handleTimeExpired()
+          }
+        } catch (err) {
+          console.error("Error checking time limit:", err)
+        }
+      }, 10000) // Check every 10 seconds
+    }
+
+    // Clean up interval on unmount or when quiz is completed
+    return () => {
+      if (timeCheckIntervalRef.current) {
+        clearInterval(timeCheckIntervalRef.current)
+        timeCheckIntervalRef.current = null
+      }
+    }
+  }, [currentAttemptId, timerActive, timeExpired])
 
   // Reset state when switching to explorer tab
   useEffect(() => {
@@ -122,6 +191,15 @@ export default function QuizApp() {
       setQuizCompleted(false)
     }
   }, [activeTab, timerActive])
+
+  // Clean up when component unmounts
+  useEffect(() => {
+    return () => {
+      if (timeCheckIntervalRef.current) {
+        clearInterval(timeCheckIntervalRef.current)
+      }
+    }
+  }, [])
 
   const startQuiz = async (quiz) => {
     try {
@@ -154,6 +232,17 @@ export default function QuizApp() {
       setScore(0)
       setTimer(0)
       setTimerActive(true)
+      setTimeExpired(false)
+
+      // Set time limit if the quiz has one
+      if (quiz.timeLimit) {
+        setTimeLimit(quiz.timeLimit)
+        setTimeRemaining(quiz.timeLimit)
+      } else {
+        setTimeLimit(0)
+        setTimeRemaining(0)
+      }
+
       setActiveTab("quiz")
     } catch (err) {
       toast({
@@ -178,56 +267,101 @@ export default function QuizApp() {
     if (currentQuestion < selectedQuiz.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1)
     } else {
-      // Submit the quiz attempt
-      try {
-        setLoading(true)
-
-        // Convert selectedOptions to the format expected by the API
-        // The API expects a map of questionId -> optionId
-        const responses = Object.entries(selectedOptions).reduce((acc, [questionId, optionId]) => {
-          acc[questionId] = optionId
-          return acc
-        }, {})
-
-        const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(responses),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to submit quiz attempt")
-        }
-
-        const result = await response.json()
-
-        setScore(result.correctAnswers)
-        setQuizCompleted(true)
-        setTimerActive(false)
-        setActiveTab("resultats")
-
-        // Show confetti if score is good
-        if (result.correctAnswers >= selectedQuiz.questions.length * 0.7) {
-          setShowConfetti(true)
-          setTimeout(() => setShowConfetti(false), 5000)
-        }
-      } catch (err) {
-        toast({
-          title: "Error",
-          description: err.message || "Failed to submit quiz",
-          variant: "destructive",
-        })
-        console.error("Error submitting quiz:", err)
-      } finally {
-        setLoading(false)
-      }
+      await submitQuiz()
     }
   }
 
+  const submitQuiz = async () => {
+    // Submit the quiz attempt
+    try {
+      setLoading(true)
+
+      // Convert selectedOptions to the format expected by the API
+      // The API expects a map of questionId -> optionId
+      const responses = Object.entries(selectedOptions).reduce((acc, [questionId, optionId]) => {
+        acc[questionId] = optionId
+        return acc
+      }, {})
+
+      const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(responses),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to submit quiz attempt")
+      }
+
+      const result = await response.json()
+
+      setScore(result.correctAnswers)
+      setQuizCompleted(true)
+      setTimerActive(false)
+      setActiveTab("resultats")
+
+      // Show confetti if score is good
+      if (result.correctAnswers >= selectedQuiz.questions.length * 0.7) {
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 5000)
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to submit quiz",
+        variant: "destructive",
+      })
+      console.error("Error submitting quiz:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTimeExpired = async () => {
+    // Stop the timer
+    setTimerActive(false)
+    setTimeExpired(true)
+
+    try {
+      // Auto-submit the quiz with the server
+      const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/auto-submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to auto-submit quiz")
+      }
+
+      // Show the time expired dialog
+      setShowTimeExpiredDialog(true)
+
+      // Set score to 0
+      setScore(0)
+      setQuizCompleted(true)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to auto-submit quiz",
+        variant: "destructive",
+      })
+      console.error("Error auto-submitting quiz:", err)
+    }
+  }
+
+  const handleTimeExpiredDialogClose = () => {
+    setShowTimeExpiredDialog(false)
+    setActiveTab("resultats")
+  }
+
   const formatTime = (seconds) => {
+    if (seconds < 0) seconds = 0
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`
@@ -238,6 +372,13 @@ export default function QuizApp() {
     setSelectedQuiz(null)
     setQuizCompleted(false)
     setCurrentAttemptId(null)
+    setTimeExpired(false)
+
+    // Clear any time check interval
+    if (timeCheckIntervalRef.current) {
+      clearInterval(timeCheckIntervalRef.current)
+      timeCheckIntervalRef.current = null
+    }
   }
 
   const getDifficultyColor = (difficulty) => {
@@ -306,6 +447,25 @@ export default function QuizApp() {
 
       <Navbar />
 
+      {/* Time Expired Dialog */}
+      <AlertDialog open={showTimeExpiredDialog} onOpenChange={setShowTimeExpiredDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Temps écoulé !
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Le temps imparti pour ce quiz est écoulé. Votre tentative a été automatiquement soumise avec un score de
+              0.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleTimeExpiredDialogClose}>Voir les résultats</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="container mx-auto px-4 py-8 flex-grow">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-8 bg-white/20 backdrop-blur-sm dark:bg-gray-800/40">
@@ -349,6 +509,7 @@ export default function QuizApp() {
           )}
 
           <TabsContent value="explorer" className="space-y-6">
+            {/* Explorer content remains the same */}
             <div className="w-full mx-auto">
               <div className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="relative flex-grow">
@@ -561,9 +722,25 @@ export default function QuizApp() {
                           <div className="p-2 bg-white/20 rounded-lg">{getIconComponent(selectedQuiz.icon)}</div>
                           {selectedQuiz.title}
                         </CardTitle>
-                        <div className="flex items-center bg-white/20 px-3 py-1 rounded-full">
-                          <Clock className="mr-2 h-4 w-4" />
-                          <span>{formatTime(timer)}</span>
+                        <div className="flex items-center gap-2">
+                          {timeLimit > 0 && (
+                            <div
+                              className={`flex items-center px-3 py-1 rounded-full ${
+                                timeRemaining < 60
+                                  ? "bg-red-500/70"
+                                  : timeRemaining < 180
+                                    ? "bg-amber-500/70"
+                                    : "bg-white/20"
+                              }`}
+                            >
+                              <Clock className="mr-2 h-4 w-4" />
+                              <span>Temps restant: {formatTime(timeRemaining)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center bg-white/20 px-3 py-1 rounded-full">
+                            <Clock className="mr-2 h-4 w-4" />
+                            <span>Durée: {formatTime(timer)}</span>
+                          </div>
                         </div>
                       </div>
                       <Progress
@@ -661,11 +838,13 @@ export default function QuizApp() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
                       >
-                        {score === selectedQuiz.questions.length
-                          ? "Parfait ! 🎉"
-                          : score >= selectedQuiz.questions.length / 2
-                            ? "Bon travail ! 👏"
-                            : "Continuez à apprendre ! 💪"}
+                        {timeExpired
+                          ? "Temps écoulé ! ⏱️"
+                          : score === selectedQuiz.questions.length
+                            ? "Parfait ! 🎉"
+                            : score >= selectedQuiz.questions.length / 2
+                              ? "Bon travail ! 👏"
+                              : "Continuez à apprendre ! 💪"}
                       </motion.h3>
                       <motion.p
                         className="text-gray-500 mt-2"
@@ -673,60 +852,84 @@ export default function QuizApp() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.6 }}
                       >
-                        Temps total: {formatTime(timer)}
+                        {timeExpired ? (
+                          <span className="text-red-500">
+                            Vous avez dépassé le temps limite de {formatTime(timeLimit)}
+                          </span>
+                        ) : (
+                          `Temps total: ${formatTime(timer)}`
+                        )}
                       </motion.p>
                     </div>
 
                     <Separator className="my-8" />
 
-                    <motion.div
-                      className="space-y-6"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.8 }}
-                    >
-                      <h4 className="font-medium text-lg">Révision des questions:</h4>
-                      {selectedQuiz.questions.map((question, index) => {
-                        const selectedOption = question.options.find((o) => o.id === selectedOptions[question.id])
-                        const isCorrect = selectedOption?.correct === true
-                        const correctOption = question.options.find((o) => o.correct === true)
+                    {timeExpired ? (
+                      <motion.div
+                        className="text-center py-8"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.8 }}
+                      >
+                        <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+                        <h4 className="text-xl font-medium mb-2">Quiz non complété</h4>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          Vous n'avez pas terminé le quiz dans le temps imparti. Votre score est de 0.
+                        </p>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2">
+                          Essayez à nouveau pour améliorer votre temps de réponse.
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        className="space-y-6"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.8 }}
+                      >
+                        <h4 className="font-medium text-lg">Révision des questions:</h4>
+                        {selectedQuiz.questions.map((question, index) => {
+                          const selectedOption = question.options.find((o) => o.id === selectedOptions[question.id])
+                          const isCorrect = selectedOption?.correct === true
+                          const correctOption = question.options.find((o) => o.correct === true)
 
-                        return (
-                          <motion.div
-                            key={question.id}
-                            className={`border rounded-lg p-5 ${isCorrect ? "border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900" : "border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900"}`}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.8 + index * 0.1 }}
-                          >
-                            <div className="flex items-start gap-3">
-                              {isCorrect ? (
-                                <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
-                              ) : (
-                                <XCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
-                              )}
-                              <div className="flex-1">
-                                <p className="font-medium text-base">
-                                  {index + 1}. {question.text}
-                                </p>
-                                <div className="mt-3 text-sm space-y-2">
-                                  <p
-                                    className={`${isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} font-medium`}
-                                  >
-                                    Votre réponse: {selectedOption?.text || "Aucune réponse"}
+                          return (
+                            <motion.div
+                              key={question.id}
+                              className={`border rounded-lg p-5 ${isCorrect ? "border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900" : "border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900"}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.8 + index * 0.1 }}
+                            >
+                              <div className="flex items-start gap-3">
+                                {isCorrect ? (
+                                  <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                                ) : (
+                                  <XCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
+                                )}
+                                <div className="flex-1">
+                                  <p className="font-medium text-base">
+                                    {index + 1}. {question.text}
                                   </p>
-                                  {!isCorrect && (
-                                    <p className="text-green-600 dark:text-green-400 font-medium mt-1">
-                                      Réponse correcte: {correctOption?.text}
+                                  <div className="mt-3 text-sm space-y-2">
+                                    <p
+                                      className={`${isCorrect ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} font-medium`}
+                                    >
+                                      Votre réponse: {selectedOption?.text || "Aucune réponse"}
                                     </p>
-                                  )}
+                                    {!isCorrect && (
+                                      <p className="text-green-600 dark:text-green-400 font-medium mt-1">
+                                        Réponse correcte: {correctOption?.text}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </motion.div>
-                        )
-                      })}
-                    </motion.div>
+                            </motion.div>
+                          )
+                        })}
+                      </motion.div>
+                    )}
                   </CardContent>
                   <CardFooter className="flex justify-center bg-gray-50 dark:bg-gray-800/90 p-6">
                     <Button

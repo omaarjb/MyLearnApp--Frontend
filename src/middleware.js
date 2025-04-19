@@ -1,16 +1,14 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server"
+import { NextResponse } from "next/server"
 
-export default clerkMiddleware({
-  // Public routes that don't require authentication
-  publicRoutes: ["/", "/sign-in", "/sign-up", "/api(.*)"],
+// Export a function that wraps clerkMiddleware
+export default clerkMiddleware((req) => {
+  // This will run after Clerk's auth check
+  // We need to return NextResponse.next() to continue the request
+  return NextResponse.next()
+})
 
-  // Routes that users get redirected to after sign-in
-  afterSignInUrl: "/quiz",
-
-  // Routes that users get redirected to after sign-up
-  afterSignUpUrl: "/quiz",
-});
-
+// Override Clerk's default redirects
 export const config = {
   matcher: [
     // Skip Next.js internals and all static files
@@ -18,4 +16,4 @@ export const config = {
     // Always run for API routes
     "/(api|trpc)(.*)",
   ],
-};
+}

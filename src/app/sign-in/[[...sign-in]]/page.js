@@ -14,12 +14,11 @@ export default function SignInPage() {
               formButtonPrimary: "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700",
             },
           }}
-          redirectUrl="/quiz"
           routing="path"
           signUpUrl="/sign-up"
+          redirectUrl="/dashboard" // Add this to override the default redirect
         />
       </div>
     </div>
   )
 }
-
