@@ -37,6 +37,9 @@ export default function Navbar() {
   // Check if user is a student
   const isStudent = userRole === "student"
 
+  // Determine home route based on user role
+  const homeRoute = isStudent ? "/quiz" : "/create-quiz"
+
   useEffect(() => {
     const handleScroll = () => {
       const isScrolled = window.scrollY > 10
@@ -75,7 +78,7 @@ export default function Navbar() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <a href="/quiz" className="mx-5 flex items-center gap-2">
+          <a href={homeRoute} className="mx-5 flex items-center gap-2">
             <div className="relative">
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 blur-sm opacity-70"></div>
               <div className="relative rounded-full bg-gradient-to-r from-purple-600 to-pink-600 p-1">
@@ -97,7 +100,7 @@ export default function Navbar() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <a href="/quiz" className="text-sm font-medium transition-colors hover:text-primary relative group">
+          <a href={homeRoute} className="text-sm font-medium transition-colors hover:text-primary relative group">
             Accueil
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
           </a>
@@ -110,15 +113,14 @@ export default function Navbar() {
           </a>
 
           {isLoaded && userRole && !isStudent && (
-  <a
-    href="/create-quiz" // ✅ use real path
-    className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
-  >
-    Créer un Quiz
-    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
-  </a>
-)}
-
+            <a
+              href="/create-quiz" // ✅ use real path
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
+            >
+              Créer un Quiz
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
+            </a>
+          )}
 
           <a
             href="#"
@@ -135,8 +137,6 @@ export default function Navbar() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          
-
           <Button
             variant="ghost"
             size="icon"
@@ -154,7 +154,7 @@ export default function Navbar() {
               <Button variant="ghost" size="icon" className="rounded-full relative">
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
                 <Avatar className="h-8 w-8 ring-2 ring-purple-500/20">
-                  <AvatarImage src={user?.imageUrl} alt={user?.fullName || "User"} />
+                  <AvatarImage src={user?.imageUrl || "/placeholder.svg"} alt={user?.fullName || "User"} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
                     {getUserInitials()}
                   </AvatarFallback>
@@ -171,7 +171,7 @@ export default function Navbar() {
 
               {/* Only show "Nouveau Quiz" if user is NOT a student */}
               {!isStudent && (
-                <DropdownMenuItem className="cursor-pointer">
+                <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/create-quiz")}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   <span>Nouveau Quiz</span>
                 </DropdownMenuItem>
@@ -203,7 +203,7 @@ export default function Navbar() {
         >
           <div className="space-y-1 px-4 pb-3 pt-2">
             <a
-              href="/quiz"
+              href={homeRoute}
               className="block rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-accent"
             >
               Accueil
@@ -218,7 +218,7 @@ export default function Navbar() {
             {/* Only show "Créer un Quiz" if user is NOT a student */}
             {isLoaded && userRole && !isStudent && (
               <a
-                href="#"
+                href="/create-quiz"
                 className="block rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent"
               >
                 Créer un Quiz
@@ -249,4 +249,3 @@ export default function Navbar() {
     </header>
   )
 }
-
