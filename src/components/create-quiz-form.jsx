@@ -59,6 +59,7 @@ export default function CreateQuizForm() {
       },
     ],
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleQuizDataChange = (field, value) => {
     setQuizData({
@@ -118,7 +119,6 @@ export default function CreateQuizForm() {
   const removeQuestion = (questionIndex) => {
     if (quizData.questions.length > 1) {
       const updatedQuestions = quizData.questions.filter((_, index) => index !== questionIndex)
-      // Reassign IDs to maintain sequence
       const reindexedQuestions = updatedQuestions.map((q, index) => ({
         ...q,
         id: index + 1,
@@ -130,12 +130,113 @@ export default function CreateQuizForm() {
     }
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log("Quiz data submitted:", quizData)
-    // Here you would typically send the data to your backend
-    alert("Quiz créé avec succès! Consultez la console pour les détails.")
+  const validateQuiz = () => {
+    if (!quizData.title.trim()) {
+      alert("Le titre du quiz est requis")
+      return false
+    }
+
+    if (!quizData.category) {
+      alert("Veuillez sélectionner une catégorie")
+      return false
+    }
+
+    if (!quizData.difficulty) {
+      alert("Veuillez sélectionner un niveau de difficulté")
+      return false
+    }
+
+    for (const question of quizData.questions) {
+      if (!question.text.trim()) {
+        alert(`Le texte de la question ${question.id} est requis`)
+        return false
+      }
+
+      for (const option of question.options) {
+        if (!option.text.trim()) {
+          alert(`L'option ${option.id} de la question ${question.id} est vide`)
+          return false
+        }
+      }
+    }
+
+    return true
   }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateQuiz()) {
+      return;
+    }
+  
+    setIsSubmitting(true);
+  
+    try {
+      // Format data to match your Spring Boot Quiz model
+      const requestData = {
+        title: quizData.title.trim(),
+        description: quizData.description.trim(),
+        category: quizData.category,
+        difficulty: quizData.difficulty,
+        scorePerQuestion: quizData.scorePerQuestion,
+        questions: quizData.questions.map(question => ({
+          questionText: question.text.trim(),  // Changed from 'text' to 'questionText'
+          options: question.options.map(option => ({
+            optionText: option.text.trim()    // Changed to object with 'optionText'
+          })),
+          correctOption: question.correctOptionId - 1  // Changed from 'correctOptionIndex'
+        }))
+      };
+  
+      console.log("Submitting quiz data:", JSON.stringify(requestData, null, 2));
+  
+      const response = await fetch('http://localhost:8080/api/quizzes/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Server error details:", errorData);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      alert(`Quiz created successfully! ID: ${data.id}`);
+  
+      // Reset form
+      setQuizData({
+        title: "",
+        description: "",
+        category: "",
+        difficulty: "",
+        icon: "Brain",
+        color: "from-emerald-500 to-teal-600",
+        scorePerQuestion: 1,
+        questions: [{
+          id: 1,
+          text: "",
+          options: [
+            { id: 1, text: "" },
+            { id: 2, text: "" },
+            { id: 3, text: "" },
+            { id: 4, text: "" },
+          ],
+          correctOptionId: 1,
+        }],
+      });
+  
+    } catch (error) {
+      console.error("Submission error:", error);
+      alert("Error creating quiz. Please check console for details.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
@@ -159,6 +260,7 @@ export default function CreateQuizForm() {
                     placeholder="Entrez le titre du quiz"
                     value={quizData.title}
                     onChange={(e) => handleQuizDataChange("title", e.target.value)}
+                    required
                   />
                 </div>
 
@@ -178,6 +280,7 @@ export default function CreateQuizForm() {
                     <Select
                       value={quizData.category}
                       onValueChange={(value) => handleQuizDataChange("category", value)}
+                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
@@ -197,6 +300,7 @@ export default function CreateQuizForm() {
                     <Select
                       value={quizData.difficulty}
                       onValueChange={(value) => handleQuizDataChange("difficulty", value)}
+                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
@@ -303,6 +407,7 @@ export default function CreateQuizForm() {
                             placeholder="Entrez votre question"
                             value={question.text}
                             onChange={(e) => handleQuestionChange(questionIndex, "text", e.target.value)}
+                            required
                           />
                         </div>
 
@@ -341,6 +446,7 @@ export default function CreateQuizForm() {
                                     placeholder={`Texte de l'option ${option.id}`}
                                     value={option.text}
                                     onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
+                                    required
                                   />
                                 </div>
                               </div>
@@ -367,9 +473,22 @@ export default function CreateQuizForm() {
             <Button
               type="submit"
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 gap-2 px-6"
+              disabled={isSubmitting}
             >
-              <Save className="h-4 w-4" />
-              Créer le Quiz
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  En cours...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Créer le Quiz
+                </>
+              )}
             </Button>
           </div>
         </form>
