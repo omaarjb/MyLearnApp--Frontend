@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Brain, Zap, Target, BookOpen, Plus, Trash2, Save } from "lucide-react"
+import { Brain, Zap, Target, BookOpen, Plus, Trash2, Save, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@clerk/nextjs"
+import AIQuizGenerator from "@/components/ai-quiz-generator"
 
 const CATEGORIES = ["Programmation", "Framework", "Frontend", "Backend", "DevOps", "Database", "Math"]
 const DIFFICULTY_LEVELS = ["Débutant", "Intermédiaire", "Avancé"]
@@ -37,6 +40,14 @@ const getIconComponent = (iconName) => {
 }
 
 export default function CreateQuizForm() {
+  const { toast } = useToast()
+  const { user, isLoaded } = useUser()
+  const [topics, setTopics] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false)
+  const fetchedTopicsRef = useRef(false)
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false)
+
   const [quizData, setQuizData] = useState({
     title: "",
     description: "",
@@ -44,26 +55,91 @@ export default function CreateQuizForm() {
     difficulty: "",
     icon: "Brain",
     color: "from-emerald-500 to-teal-600",
-    scorePerQuestion: 1,
+    timeLimit: 300, // 5 minutes in seconds
+    topic: {
+      id: "",
+    },
     questions: [
       {
-        id: 1,
         text: "",
         options: [
-          { id: 1, text: "" },
-          { id: 2, text: "" },
-          { id: 3, text: "" },
-          { id: 4, text: "" },
+          { text: "", isCorrect: true },
+          { text: "", isCorrect: false },
+          { text: "", isCorrect: false },
+          { text: "", isCorrect: false },
         ],
-        correctOptionId: 1,
       },
     ],
   })
+
+  // Fetch topics when component mounts
+  useEffect(() => {
+    // Use a ref to ensure we only fetch once
+    if (fetchedTopicsRef.current) return
+
+    const fetchTopics = async () => {
+      if (isLoadingTopics) return
+
+      setIsLoadingTopics(true)
+      console.log("Fetching topics...")
+
+      try {
+        const response = await fetch("http://localhost:8080/api/topics", {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Cache-Control": "no-cache",
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch topics: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("Topics fetched:", data)
+        setTopics(data)
+
+        // Set default topic if available
+        if (data.length > 0) {
+          setQuizData((prev) => ({
+            ...prev,
+            topic: {
+              id: data[0].id,
+            },
+          }))
+        }
+
+        // Mark as fetched
+        fetchedTopicsRef.current = true
+      } catch (error) {
+        console.error("Error fetching topics:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load topics. Please try again later.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingTopics(false)
+      }
+    }
+
+    fetchTopics()
+  }, [])
 
   const handleQuizDataChange = (field, value) => {
     setQuizData({
       ...quizData,
       [field]: value,
+    })
+  }
+
+  const handleTopicChange = (topicId) => {
+    setQuizData({
+      ...quizData,
+      topic: {
+        id: Number.parseInt(topicId),
+      },
     })
   }
 
@@ -88,9 +164,14 @@ export default function CreateQuizForm() {
     })
   }
 
-  const handleCorrectOptionChange = (questionIndex, optionId) => {
+  const handleCorrectOptionChange = (questionIndex, optionIndex) => {
     const updatedQuestions = [...quizData.questions]
-    updatedQuestions[questionIndex].correctOptionId = optionId
+    // Set all options to false first
+    updatedQuestions[questionIndex].options = updatedQuestions[questionIndex].options.map((option, idx) => ({
+      ...option,
+      isCorrect: idx === optionIndex,
+    }))
+
     setQuizData({
       ...quizData,
       questions: updatedQuestions,
@@ -99,15 +180,13 @@ export default function CreateQuizForm() {
 
   const addQuestion = () => {
     const newQuestion = {
-      id: quizData.questions.length + 1,
       text: "",
       options: [
-        { id: 1, text: "" },
-        { id: 2, text: "" },
-        { id: 3, text: "" },
-        { id: 4, text: "" },
+        { text: "", isCorrect: true },
+        { text: "", isCorrect: false },
+        { text: "", isCorrect: false },
+        { text: "", isCorrect: false },
       ],
-      correctOptionId: 1,
     }
     setQuizData({
       ...quizData,
@@ -118,23 +197,184 @@ export default function CreateQuizForm() {
   const removeQuestion = (questionIndex) => {
     if (quizData.questions.length > 1) {
       const updatedQuestions = quizData.questions.filter((_, index) => index !== questionIndex)
-      // Reassign IDs to maintain sequence
-      const reindexedQuestions = updatedQuestions.map((q, index) => ({
-        ...q,
-        id: index + 1,
-      }))
       setQuizData({
         ...quizData,
-        questions: reindexedQuestions,
+        questions: updatedQuestions,
       })
     }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log("Quiz data submitted:", quizData)
-    // Here you would typically send the data to your backend
-    alert("Quiz créé avec succès! Consultez la console pour les détails.")
+
+    if (!isLoaded || !user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create a quiz",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate form
+    if (!quizData.title || !quizData.description || !quizData.category || !quizData.difficulty || !quizData.topic.id) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all the quiz details",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate questions
+    for (const question of quizData.questions) {
+      if (!question.text.trim()) {
+        toast({
+          title: "Incomplete question",
+          description: "Please provide text for all questions",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Check if all options have text
+      for (const option of question.options) {
+        if (!option.text.trim()) {
+          toast({
+            title: "Incomplete options",
+            description: "Please provide text for all options",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
+      // Ensure one option is marked as correct
+      if (!question.options.some((option) => option.isCorrect)) {
+        toast({
+          title: "Missing correct answer",
+          description: "Please mark a correct answer for each question",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Get the professor ID from the Clerk user
+      const professorId = user.id
+
+      // Create the request
+      const response = await fetch(`http://localhost:8080/api/quizzes/complete/professor/${professorId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(quizData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Success!",
+        description: "Your quiz has been created successfully",
+      })
+
+      // Reset form or redirect
+      setQuizData({
+        title: "",
+        description: "",
+        category: "",
+        difficulty: "",
+        icon: "Brain",
+        color: "from-emerald-500 to-teal-600",
+        timeLimit: 300,
+        topic: {
+          id: topics.length > 0 ? topics[0].id : "",
+        },
+        questions: [
+          {
+            text: "",
+            options: [
+              { text: "", isCorrect: true },
+              { text: "", isCorrect: false },
+              { text: "", isCorrect: false },
+              { text: "", isCorrect: false },
+            ],
+          },
+        ],
+      })
+    } catch (error) {
+      console.error("Error creating quiz:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create quiz. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Function to manually refresh topics
+  const refreshTopics = async () => {
+    setIsLoadingTopics(true)
+
+    try {
+      const response = await fetch("http://localhost:8080/api/topics", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Cache-Control": "no-cache, no-store",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch topics: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setTopics(data)
+
+      toast({
+        title: "Topics refreshed",
+        description: `${data.length} topics loaded successfully.`,
+      })
+    } catch (error) {
+      console.error("Error refreshing topics:", error)
+      toast({
+        title: "Error",
+        description: "Failed to refresh topics.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingTopics(false)
+    }
+  }
+
+  // Handle AI-generated quiz
+  const handleAIQuizGenerated = (generatedQuiz) => {
+    // Find the topic ID that matches the generated quiz (or use the first one)
+    const topicId = quizData.topic.id || (topics.length > 0 ? topics[0].id : "")
+
+    // Update the quiz data with the AI-generated content
+    setQuizData({
+      ...generatedQuiz,
+      topic: {
+        id: topicId,
+      },
+    })
+
+    toast({
+      title: "Quiz généré avec succès",
+      description: "Vous pouvez maintenant modifier le quiz avant de le soumettre.",
+    })
   }
 
   return (
@@ -142,6 +382,11 @@ export default function CreateQuizForm() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Créer un Quiz</h1>
+          {isLoaded && user && (
+            <p className="text-gray-600 dark:text-gray-400">
+              Connecté en tant que: {user.firstName} {user.lastName}
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -213,14 +458,56 @@ export default function CreateQuizForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="scorePerQuestion">Points par question</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="topic">Sujet</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={refreshTopics}
+                      disabled={isLoadingTopics}
+                      className="h-8 px-2 text-xs"
+                    >
+                      {isLoadingTopics ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : "Rafraîchir"}
+                    </Button>
+                  </div>
+                  <Select value={quizData.topic.id.toString()} onValueChange={(value) => handleTopicChange(value)}>
+                    <SelectTrigger disabled={isLoadingTopics || topics.length === 0}>
+                      {isLoadingTopics ? (
+                        <div className="flex items-center">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <span>Chargement...</span>
+                        </div>
+                      ) : (
+                        <SelectValue
+                          placeholder={topics.length === 0 ? "Aucun sujet disponible" : "Sélectionner un sujet"}
+                        />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {topics.map((topic) => (
+                        <SelectItem key={topic.id} value={topic.id.toString()}>
+                          {topic.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {topics.length === 0 && !isLoadingTopics && (
+                    <p className="text-sm text-red-500 mt-1">
+                      Aucun sujet disponible. Veuillez en créer un ou rafraîchir la liste.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="timeLimit">Temps limite (secondes)</Label>
                   <Input
-                    id="scorePerQuestion"
+                    id="timeLimit"
                     type="number"
-                    min="1"
-                    max="10"
-                    value={quizData.scorePerQuestion}
-                    onChange={(e) => handleQuizDataChange("scorePerQuestion", Number.parseInt(e.target.value))}
+                    min="60"
+                    max="3600"
+                    value={quizData.timeLimit}
+                    onChange={(e) => handleQuizDataChange("timeLimit", Number.parseInt(e.target.value))}
                   />
                 </div>
 
@@ -278,11 +565,11 @@ export default function CreateQuizForm() {
                 <CardContent className="space-y-6">
                   {quizData.questions.map((question, questionIndex) => (
                     <Card
-                      key={question.id}
+                      key={questionIndex}
                       className="border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50"
                     >
                       <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <h3 className="font-medium">Question {question.id}</h3>
+                        <h3 className="font-medium">Question {questionIndex + 1}</h3>
                         {quizData.questions.length > 1 && (
                           <Button
                             type="button"
@@ -297,9 +584,9 @@ export default function CreateQuizForm() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor={`question-${question.id}`}>Texte de la question</Label>
+                          <Label htmlFor={`question-${questionIndex}`}>Texte de la question</Label>
                           <Textarea
-                            id={`question-${question.id}`}
+                            id={`question-${questionIndex}`}
                             placeholder="Entrez votre question"
                             value={question.text}
                             onChange={(e) => handleQuestionChange(questionIndex, "text", e.target.value)}
@@ -310,35 +597,28 @@ export default function CreateQuizForm() {
                           <Label>Options de réponse</Label>
                           <div className="space-y-3">
                             {question.options.map((option, optionIndex) => (
-                              <div key={option.id} className="flex items-start gap-3">
+                              <div key={optionIndex} className="flex items-start gap-3">
                                 <RadioGroup
-                                  value={String(question.correctOptionId)}
-                                  onValueChange={(value) =>
-                                    handleCorrectOptionChange(questionIndex, Number.parseInt(value))
-                                  }
+                                  value={option.isCorrect ? optionIndex.toString() : undefined}
+                                  onValueChange={() => handleCorrectOptionChange(questionIndex, optionIndex)}
                                   className="mt-2"
                                 >
                                   <RadioGroupItem
-                                    value={String(option.id)}
-                                    id={`q${question.id}-option${option.id}`}
+                                    value={optionIndex.toString()}
+                                    id={`q${questionIndex}-option${optionIndex}`}
                                     className="border-purple-600"
                                   />
                                 </RadioGroup>
                                 <div className="flex-1">
                                   <Label
-                                    htmlFor={`q${question.id}-option${option.id}`}
-                                    className={cn(
-                                      "mb-1 block",
-                                      question.correctOptionId === option.id && "text-purple-400",
-                                    )}
+                                    htmlFor={`q${questionIndex}-option${optionIndex}`}
+                                    className={cn("mb-1 block", option.isCorrect && "text-purple-400")}
                                   >
-                                    Option {option.id}
-                                    {question.correctOptionId === option.id && (
-                                      <Badge className="ml-2 bg-purple-600">Correcte</Badge>
-                                    )}
+                                    Option {optionIndex + 1}
+                                    {option.isCorrect && <Badge className="ml-2 bg-purple-600">Correcte</Badge>}
                                   </Label>
                                   <Input
-                                    placeholder={`Texte de l'option ${option.id}`}
+                                    placeholder={`Texte de l'option ${optionIndex + 1}`}
                                     value={option.text}
                                     onChange={(e) => handleOptionChange(questionIndex, optionIndex, e.target.value)}
                                   />
@@ -359,7 +639,7 @@ export default function CreateQuizForm() {
             <Button
               type="button"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 gap-2 px-6"
-              onClick={() => alert("Fonctionnalité d'IA en cours de développement")}
+              onClick={() => setIsAIModalOpen(true)}
             >
               <Zap className="h-4 w-4" />
               Créer Quiz avec AI
@@ -367,12 +647,30 @@ export default function CreateQuizForm() {
             <Button
               type="submit"
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 gap-2 px-6"
+              disabled={isLoading}
             >
-              <Save className="h-4 w-4" />
-              Créer le Quiz
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Création en cours...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Créer le Quiz
+                </>
+              )}
             </Button>
           </div>
         </form>
+
+        {/* AI Quiz Generator Modal */}
+        <AIQuizGenerator
+          isOpen={isAIModalOpen}
+          onClose={() => setIsAIModalOpen(false)}
+          onQuizGenerated={handleAIQuizGenerated}
+          userId={user?.id}
+        />
       </div>
     </div>
   )
