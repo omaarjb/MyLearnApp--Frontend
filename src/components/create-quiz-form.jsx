@@ -359,23 +359,37 @@ export default function CreateQuizForm() {
   }
 
   // Handle AI-generated quiz
-  const handleAIQuizGenerated = (generatedQuiz) => {
-    // Find the topic ID that matches the generated quiz (or use the first one)
-    const topicId = quizData.topic.id || (topics.length > 0 ? topics[0].id : "")
+  // Function to handle AI-generated quiz
+const handleAIQuizGenerated = (generatedQuiz) => {
+  // Find the topic ID that matches the generated quiz (or use the first one)
+  const topicId = quizData.topic.id || (topics.length > 0 ? topics[0].id : "")
 
-    // Update the quiz data with the AI-generated content
-    setQuizData({
-      ...generatedQuiz,
-      topic: {
-        id: topicId,
-      },
-    })
+  // Transform the questions to match the expected format
+  const transformedQuestions = generatedQuiz.questions.map((question) => {
+    return {
+      text: question.text,
+      options: question.options.map((option) => ({
+        text: option.text,
+        isCorrect: option.correct, // Convert 'correct' to 'isCorrect'
+      })),
+    }
+  })
 
-    toast({
-      title: "Quiz généré avec succès",
-      description: "Vous pouvez maintenant modifier le quiz avant de le soumettre.",
-    })
-  }
+  // Update the quiz data with the AI-generated content
+  setQuizData({
+    ...generatedQuiz,
+    topic: {
+      id: topicId,
+    },
+    questions: transformedQuestions, // Use the transformed questions
+  })
+
+  toast({
+    title: "Quiz généré avec succès",
+    description: "Vous pouvez maintenant modifier le quiz avant de le soumettre.",
+  })
+}
+
 
   return (
     <div className="flex flex-col min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
