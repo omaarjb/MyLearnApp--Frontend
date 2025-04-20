@@ -26,10 +26,9 @@ export default function QuizPage() {
 
   // Only render QuizApp if user is signed in
   if (isSignedIn) {
-    return <QuizApp />
+    return <QuizApp /> 
   }
 
-  // This is a fallback, but the useEffect should redirect before this renders
   return (
     <div className="flex justify-center items-center min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       <div className="text-center">
