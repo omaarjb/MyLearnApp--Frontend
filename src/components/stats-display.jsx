@@ -243,94 +243,93 @@ export default function StatsPage() {
         </header>
 
         {role === "student" && (
-          <div className=" mb-8 bg-white/90 backdrop-blur-sm dark:bg-gray-800/80 shadow-xl rounded-lg p-4">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+  <div className="mb-8 bg-white/90 backdrop-blur-sm dark:bg-gray-800/80 shadow-xl rounded-lg p-4" style={{ position: 'relative', zIndex: 20 }}>
+    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <div className="flex items-center">
                 <Filter className="h-5 w-5 text-purple-600 mr-2" />
                 <span className="font-medium">Filtrer par:</span>
               </div>
 
               {/* Topic Filter */}
-              <div className="relative z-0">
-                <button
-                  onClick={() => {
-                    setIsTopicDropdownOpen(!isTopicDropdownOpen)
-                    setIsGradeDropdownOpen(false)
-                  }}
-                  className="flex items-center justify-between w-48 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
-                >
-                  <span>
-                    Sujet:{" "}
-                    {selectedTopic === "all" ? "Tous" : selectedTopic.charAt(0).toUpperCase() + selectedTopic.slice(1)}
-                  </span>
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </button>
-                {isTopicDropdownOpen && (
-                  <div className="absolute z-[9999] w-48 mt-1 bg-white rounded-md shadow-lg dark:bg-gray-700">
-                    <ul className="py-1 overflow-auto text-base">
-                      {topics.map((topic) => (
-                        <li
-                          key={topic}
-                          onClick={() => {
-                            setSelectedTopic(topic)
-                            setIsTopicDropdownOpen(false)
-                          }}
-                          className={`cursor-pointer px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 ${
-                            selectedTopic === topic
-                              ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
-                              : ""
-                          }`}
-                        >
-                          {topic === "all" ? "Tous les sujets" : topic.charAt(0).toUpperCase() + topic.slice(1)}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <div className="relative" style={{ zIndex: 30 }}>
+  <button
+    onClick={() => {
+      setIsTopicDropdownOpen(!isTopicDropdownOpen)
+      setIsGradeDropdownOpen(false)
+    }}
+    className="flex items-center justify-between w-48 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+  >
+    <span>
+      Sujet:{" "}
+      {selectedTopic === "all" ? "Tous" : selectedTopic.charAt(0).toUpperCase() + selectedTopic.slice(1)}
+    </span>
+    <ChevronDown className="w-4 h-4 ml-2" />
+  </button>
+  {isTopicDropdownOpen && (
+    <div className="absolute w-48 mt-1 bg-white rounded-md shadow-lg dark:bg-gray-700" style={{ zIndex: 40 }}>
+      <ul className="py-1 overflow-auto text-base">
+        {topics.map((topic) => (
+          <li
+            key={topic}
+            onClick={() => {
+              setSelectedTopic(topic)
+              setIsTopicDropdownOpen(false)
+            }}
+            className={`cursor-pointer px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 ${
+              selectedTopic === topic
+                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                : ""
+            }`}
+          >
+            {topic === "all" ? "Tous les sujets" : topic.charAt(0).toUpperCase() + topic.slice(1)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+</div>
 
               {/* Grade Filter */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setIsGradeDropdownOpen(!isGradeDropdownOpen)
-                    setIsTopicDropdownOpen(false)
-                  }}
-                  className="flex items-center justify-between w-48 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
-                >
-                  <span>Note: {selectedGrade === "all" ? "Toutes" : selectedGrade}</span>
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </button>
-                {isGradeDropdownOpen && (
-                  <div className="absolute z-[9999] w-48 mt-1 bg-white rounded-md shadow-lg dark:bg-gray-700">
-                    <ul className="py-1 overflow-auto text-base">
-                      {grades.map((grade) => (
-                        <li
-                          key={grade}
-                          onClick={() => {
-                            setSelectedGrade(grade)
-                            setIsGradeDropdownOpen(false)
-                          }}
-                          className={`cursor-pointer px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 ${
-                            selectedGrade === grade
-                              ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
-                              : ""
-                          }`}
-                        >
-                          {grade === "all" ? "Toutes les notes" : grade}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <div className="relative" style={{ zIndex: 30 }}>
+  <button
+    onClick={() => {
+      setIsGradeDropdownOpen(!isGradeDropdownOpen)
+      setIsTopicDropdownOpen(false)
+    }}
+    className="flex items-center justify-between w-48 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+  >
+    <span>Note: {selectedGrade === "all" ? "Toutes" : selectedGrade}</span>
+    <ChevronDown className="w-4 h-4 ml-2" />
+  </button>
+  {isGradeDropdownOpen && (
+    <div className="absolute w-48 mt-1 bg-white rounded-md shadow-lg dark:bg-gray-700" style={{ zIndex: 40 }}>
+      <ul className="py-1 overflow-auto text-base">
+        {grades.map((grade) => (
+          <li
+            key={grade}
+            onClick={() => {
+              setSelectedGrade(grade)
+              setIsGradeDropdownOpen(false)
+            }}
+            className={`cursor-pointer px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 ${
+              selectedGrade === grade
+                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+                : ""
+            }`}
+          >
+            {grade === "all" ? "Toutes les notes" : grade}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+</div>
             </div>
           </div>
         )}
 
         {role === "student" ? (
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
->
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
               title="Quiz Complétés"
               value={studentStats.completedQuizzes}
@@ -425,7 +424,7 @@ export default function StatsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {attempt.score}%
+                            {attempt.score}/{attempt.totalQuestions}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             {attempt.timeTakenSeconds} sec

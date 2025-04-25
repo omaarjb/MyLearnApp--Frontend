@@ -123,7 +123,7 @@ export default function Navbar() {
           )}
 
           <a
-            href="#"
+            href="/stats"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
           >
             Statistiques
