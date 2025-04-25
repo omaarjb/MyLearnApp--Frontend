@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import Navbar from "@/components/navbar"
+import Footer from "@/components/footer"
 
 export default function ProfilePage() {
   const { user } = useUser()
@@ -118,6 +119,7 @@ export default function ProfilePage() {
           </motion.div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

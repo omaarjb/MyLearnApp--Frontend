@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@clerk/nextjs"
 import { useToast } from "@/hooks/use-toast"
+import Footer from "./footer"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -944,7 +945,10 @@ export default function QuizApp() {
             )}
           </TabsContent>
         </Tabs>
+        
       </div>
+      <Footer/>
+      
     </div>
   )
 }
