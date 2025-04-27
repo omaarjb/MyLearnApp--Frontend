@@ -1,41 +1,46 @@
-import { currentUser } from "@clerk/nextjs/server"
-import { redirect } from "next/navigation"
+// In your dashboard.js or similar page
+"use client"
 
-export default async function Dashboard() {
-  console.log("Dashboard page reached")
-  
-  // Get the current user
-  const user = await currentUser()
+import { useUser } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 
-  if (!user) {
-    console.log("No user found, redirecting to sign-in")
-    redirect("/sign-in")
-  }
+export default function Dashboard() {
+  const { isLoaded, isSignedIn, user } = useUser()
+  const router = useRouter()
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
-  console.log("User found:", user.id)
-  console.log("User metadata:", user.unsafeMetadata)
-  
-  // Get the role from user unsafeMetadata
-  const role = user.unsafeMetadata?.role
-  
-  console.log("User role:", role)
+  useEffect(() => {
+    // Only proceed when Clerk has fully loaded user data
+    if (isLoaded && isSignedIn && user && !isRedirecting) {
+      console.log("Dashboard page reached")
+      console.log("User found:", user.id)
+      
+      // Add a small delay to ensure metadata is fully loaded
+      setTimeout(() => {
+        const userRole = user.unsafeMetadata?.role || ""
+        console.log("User metadata:", user.unsafeMetadata)
+        console.log("User role:", userRole)
 
-  // Redirect based on role
-  if (role === "student") {
-    console.log("Redirecting to /quiz")
-    redirect("/quiz")
-  } else if (role === "professeur") {
-    console.log("Redirecting to /create-quiz")
-    redirect("/create-quiz")
-  }
+        setIsRedirecting(true)
+        
+        if (userRole === "student") {
+          console.log("Redirecting to /quiz")
+          router.push("/quiz")
+        } else if (userRole === "professeur") {
+          console.log("Redirecting to /create-quiz")
+          router.push("/create-quiz")
+        } else {
+          console.log("Unknown role, staying on dashboard")
+        }
+      }, 500) // Small delay to ensure metadata is available
+    }
+  }, [isLoaded, isSignedIn, user, router, isRedirecting])
 
+  // Show loading state while determining where to redirect
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-      <p>This is a fallback page if no role is set.</p>
-      <pre className="mt-4 p-4 bg-gray-100 rounded overflow-auto">
-        {JSON.stringify({ id: user.id, metadata: user.unsafeMetadata }, null, 2)}
-      </pre>
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
     </div>
   )
 }

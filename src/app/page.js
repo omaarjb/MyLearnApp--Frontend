@@ -18,20 +18,32 @@ import {
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
-import { useAuth } from "@clerk/nextjs"
+import { useAuth, useUser } from "@clerk/nextjs"
 import { useTheme } from "next-themes"
 
 export default function LandingPage() {
   const router = useRouter()
   const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
+
   const { theme, setTheme } = useTheme()
 
   // Redirect to quiz page if already signed in
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.push("/quiz")
+    if (isLoaded && isSignedIn && user) {
+      // Check the user's role from unsafeMetadata
+      const userRole = user.unsafeMetadata?.role || ""
+      
+      if (userRole === "student") {
+        router.push("/quiz")
+      } else if (userRole === "professeur") {
+        router.push("/create-quiz")
+      } else {
+        // Default redirect if role is not set or unknown
+        router.push("/quiz")
+      }
     }
-  }, [isLoaded, isSignedIn, router])
+  }, [isLoaded, isSignedIn, router, user])
 
   const [activeSection, setActiveSection] = useState("hero")
   const [isVisible, setIsVisible] = useState(false)
