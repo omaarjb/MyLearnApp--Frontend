@@ -105,7 +105,7 @@ export default function Navbar() {
             <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
           </a>
           <a
-            href="#"
+           href="/quizzes"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
           >
             Mes Quiz
@@ -123,7 +123,7 @@ export default function Navbar() {
           )}
 
           <a
-            href="/stats"
+            href="/stats" // ✅ use real path
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
           >
             Statistiques
@@ -178,9 +178,9 @@ export default function Navbar() {
               )}
 
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Déconnexion</span>
+              <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => router.push("/signout")}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Déconnexion</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -209,7 +209,7 @@ export default function Navbar() {
               Accueil
             </a>
             <a
-              href="#"
+              href="/quizzes"
               className="block rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent"
             >
               Mes Quiz
@@ -226,7 +226,7 @@ export default function Navbar() {
             )}
 
             <a
-              href="#"
+              href="/stats"
               className="block rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent"
             >
               Statistiques
