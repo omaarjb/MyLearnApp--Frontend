@@ -424,7 +424,7 @@ export default function StatsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                            {attempt.score}%
+                            {attempt.score}/{attempt.totalQuestions}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                             {attempt.timeTakenSeconds} sec
