@@ -15,7 +15,8 @@ import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { motion } from "framer-motion"
 import { useClerk, useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+import Link from "next/link"
 
 export default function Navbar() {
   const { setTheme, theme } = useTheme()
@@ -24,6 +25,7 @@ export default function Navbar() {
   const { signOut } = useClerk()
   const { user, isLoaded } = useUser()
   const router = useRouter()
+  const pathname = usePathname()
   const [userRole, setUserRole] = useState(null)
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function Navbar() {
   const isStudent = userRole === "student"
 
   // Determine home route based on user role
-  const homeRoute = isStudent ? "/quiz" : "/create-quiz"
+  const homeRoute = "/accueil"
 
   useEffect(() => {
     const handleScroll = () => {
@@ -65,6 +67,54 @@ export default function Navbar() {
     return ((user.firstName || "").charAt(0) + (user.lastName || "").charAt(0)).toUpperCase() || "U"
   }
 
+  // Function to check if a link is active
+  const isActive = (path) => {
+    if (path === homeRoute && pathname === homeRoute) {
+      return true
+    }
+    // For other paths, check if the pathname starts with the path
+    // This handles nested routes like /create-quiz/new
+    return path !== homeRoute && pathname.startsWith(path)
+  }
+
+  // NavLink component for consistent styling
+  const NavLink = ({ href, children }) => {
+    const active = isActive(href)
+
+    return (
+      <Link
+        href={href}
+        className={`text-sm font-medium transition-colors hover:text-primary relative group ${
+          active ? "text-purple-600 dark:text-purple-400" : "text-muted-foreground"
+        }`}
+      >
+        {children}
+        <span
+          className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all ${
+            active ? "w-full" : "w-0 group-hover:w-full"
+          }`}
+        ></span>
+      </Link>
+    )
+  }
+
+  // Mobile NavLink component
+  const MobileNavLink = ({ href, children }) => {
+    const active = isActive(href)
+
+    return (
+      <Link
+        href={href}
+        className={`block rounded-md px-3 py-2 text-base font-medium hover:bg-accent ${
+          active ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20" : "text-muted-foreground"
+        }`}
+        onClick={() => setIsMenuOpen(false)}
+      >
+        {children}
+      </Link>
+    )
+  }
+
   return (
     <header
       className={`sticky top-0 z-50 w-full backdrop-blur-md transition-all duration-300 ${
@@ -78,7 +128,7 @@ export default function Navbar() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <a href={homeRoute} className="mx-5 flex items-center gap-2">
+          <Link href={homeRoute} className="mx-5 flex items-center gap-2">
             <div className="relative">
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 blur-sm opacity-70"></div>
               <div className="relative rounded-full bg-gradient-to-r from-purple-600 to-pink-600 p-1">
@@ -90,7 +140,7 @@ export default function Navbar() {
             <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
               MyLearn
             </span>
-          </a>
+          </Link>
         </motion.div>
 
         {/* Desktop Navigation */}
@@ -100,35 +150,15 @@ export default function Navbar() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <a href={homeRoute} className="text-sm font-medium transition-colors hover:text-primary relative group">
-            Accueil
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
-          </a>
-          <a
-           href="/quizzes"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
-          >
-            Mes Quiz
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
-          </a>
+          <NavLink href={homeRoute}>Accueil</NavLink>
 
-          {isLoaded && userRole && !isStudent && (
-            <a
-              href="/create-quiz" // ✅ use real path
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
-            >
-              Créer un Quiz
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
-            </a>
-          )}
+          {isLoaded && userRole && !isStudent && <NavLink href="/quizzes">Mes Quiz</NavLink>}
 
-          <a
-            href="/stats" // ✅ use real path
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary relative group"
-          >
-            Statistiques
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:w-full"></span>
-          </a>
+          {isLoaded && userRole && isStudent && <NavLink href="/quiz">Quiz</NavLink>}
+
+          {isLoaded && userRole && !isStudent && <NavLink href="/create-quiz">Créer un Quiz</NavLink>}
+
+          {isLoaded && userRole && isStudent && <NavLink href="/stats">Statistiques</NavLink>}
         </motion.nav>
 
         <motion.div
@@ -178,9 +208,12 @@ export default function Navbar() {
               )}
 
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => router.push("/signout")}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Déconnexion</span>
+              <DropdownMenuItem
+                className="cursor-pointer text-red-500 focus:text-red-500"
+                onClick={() => router.push("/signout")}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Déconnexion</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -202,35 +235,17 @@ export default function Navbar() {
           transition={{ duration: 0.3 }}
         >
           <div className="space-y-1 px-4 pb-3 pt-2">
-            <a
-              href={homeRoute}
-              className="block rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-accent"
-            >
-              Accueil
-            </a>
-            <a
-              href="/quizzes"
-              className="block rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent"
-            >
-              Mes Quiz
-            </a>
+            <MobileNavLink href={homeRoute}>Accueil</MobileNavLink>
+
+            {isLoaded && userRole && !isStudent && <MobileNavLink href="/quizzes">Mes Quiz</MobileNavLink>}
+
+            {isLoaded && userRole && isStudent && <MobileNavLink href="/quiz">Quiz</MobileNavLink>}
 
             {/* Only show "Créer un Quiz" if user is NOT a student */}
-            {isLoaded && userRole && !isStudent && (
-              <a
-                href="/create-quiz"
-                className="block rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent"
-              >
-                Créer un Quiz
-              </a>
-            )}
+            {isLoaded && userRole && !isStudent && <MobileNavLink href="/create-quiz">Créer un Quiz</MobileNavLink>}
 
-            <a
-              href="/stats"
-              className="block rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent"
-            >
-              Statistiques
-            </a>
+            {isLoaded && userRole && isStudent && <MobileNavLink href="/stats">Statistiques</MobileNavLink>}
+
             <div className="relative mt-3">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input

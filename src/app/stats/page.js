@@ -5,20 +5,31 @@ import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 export default function StatsPage() {
   const { isLoaded, isSignedIn, user } = useUser()
   const router = useRouter()
+  const [authState, setAuthState] = useState("loading")
 
-  // Redirect to sign-in if not authenticated
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push("/sign-in")
-    }
-  }, [isLoaded, isSignedIn, router])
+    if (!isLoaded) return
 
-  if (!isLoaded) {
+    if (!isSignedIn) {
+      setAuthState("unauthenticated")
+      return
+    }
+
+    const role = user?.unsafeMetadata?.role || ""
+    if (role !== "student") {
+      setAuthState("unauthorized")
+      return
+    }
+
+    setAuthState("authenticated")
+  }, [isLoaded, isSignedIn, user])
+
+  if (authState === "loading") {
     return (
       <div className="flex justify-center items-center min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -26,8 +37,7 @@ export default function StatsPage() {
     )
   }
 
-  // Only render StatsDisplay if user is signed in
-  if (isSignedIn) {
+  if (authState === "authenticated") {
     return (
       <div className="flex flex-col min-h-screen">
         <Navbar />
@@ -39,19 +49,37 @@ export default function StatsPage() {
     )
   }
 
-  // This is a fallback, but the useEffect should redirect before this renders
+  // Handle both unauthenticated and unauthorized cases
   return (
     <div className="flex justify-center items-center min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-4">Authentification requise</h1>
-        <p className="mb-4">Vous devez être connecté pour accéder aux statistiques.</p>
-        <button
-          onClick={() => router.push("/sign-in")}
-          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-md"
-        >
-          Se connecter
-        </button>
+      <div className="text-center p-6 max-w-md mx-auto">
+        <h1 className="text-2xl font-bold mb-4">
+          {authState === "unauthenticated" 
+            ? "Authentification requise" 
+            : "Accès non autorisé"}
+        </h1>
+        <p className="mb-6">
+          {authState === "unauthenticated"
+            ? "Vous devez être connecté pour accéder aux statistiques."
+            : "Seuls les étudiants peuvent accéder à cette page."}
+        </p>
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={() => router.push("/sign-in")}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-md transition-colors"
+          >
+            {authState === "unauthenticated" ? "Se connecter" : "Changer de compte"}
+          </button>
+          {authState === "unauthorized" && (
+            <button
+              onClick={() => router.push("/")}
+              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 px-4 py-2 rounded-md transition-colors"
+            >
+              Retour à l'accueil
+            </button>
+          )}
+        </div>
       </div>
     </div>
-  )
+    )
 }

@@ -25,11 +25,11 @@ export default function Dashboard() {
         setIsRedirecting(true)
         
         if (userRole === "student") {
-          console.log("Redirecting to /quiz")
-          router.push("/quiz")
+          console.log("Redirecting to /accueil")
+          router.push("/accueil")
         } else if (userRole === "professeur") {
-          console.log("Redirecting to /create-quiz")
-          router.push("/create-quiz")
+          console.log("Redirecting to /accueil")
+          router.push("/accueil")
         } else {
           console.log("Unknown role, staying on dashboard")
         }

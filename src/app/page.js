@@ -532,7 +532,7 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col gap-2 min-[400px]:flex-row pt-4">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 h-12 px-6 relative overflow-hidden group">
+                <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 h-12 px-6 relative overflow-hidden group" onClick={() => router.push("/sign-up")}>
                   <span className="relative z-10">S'inscrire gratuitement</span>
                   <motion.div
                     className="absolute inset-0 bg-white dark:bg-gray-800 opacity-0 group-hover:opacity-20 rounded-md"
@@ -543,7 +543,7 @@ export default function LandingPage() {
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" className="h-12 border-2 relative overflow-hidden group dark:border-gray-700">
+                <Button variant="outline" className="h-12 border-2 relative overflow-hidden group dark:border-gray-700" onClick={() => router.push("/sign-in")}>
                   <span className="relative z-10">Se connecter</span>
                   <motion.div
                     className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 opacity-0 group-hover:opacity-100 rounded-md"
