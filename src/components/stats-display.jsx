@@ -19,6 +19,8 @@ export default function StatsPage() {
 
   const grades = ["all", "A", "B", "C", "D", "F"]
 
+  const API_BASE_URL = "http://localhost:8081"
+
   // Sample data for when the API is not available
   const sampleQuizData = [
     {
@@ -99,7 +101,7 @@ export default function StatsPage() {
       setRole(user.publicMetadata.role || "student")
       const clerkId = user.id
 
-      fetch(`http://localhost:8080/api/quiz-attempts/user/${clerkId}`)
+     fetch(`${API_BASE_URL}/api/quiz-attempts/user/${clerkId}`)
         .then(async (response) => {
           const text = await response.text()
 

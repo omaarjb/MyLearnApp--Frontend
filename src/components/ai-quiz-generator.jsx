@@ -30,6 +30,8 @@ export default function AIQuizGenerator({ isOpen, onClose, onQuizGenerated, user
   const [textContent, setTextContent] = useState("")
   const [generationError, setGenerationError] = useState("")
   const { toast } = useToast()
+  const API_BASE_URL = "http://localhost:8081"
+
 
   const handleGenerate = async () => {
     setIsGenerating(true)
@@ -55,7 +57,7 @@ export default function AIQuizGenerator({ isOpen, onClose, onQuizGenerated, user
       }
 
       // Call the backend API to generate the quiz
-      const response = await fetch(`http://localhost:8080/api/quizzes/generate-with-ai?professorId=${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/quizzes/generate-with-ai?professorId=${userId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

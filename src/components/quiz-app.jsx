@@ -56,6 +56,8 @@ const getIconComponent = (iconName) => {
 }
 
 export default function QuizApp() {
+  const API_BASE_URL = "http://localhost:8081"
+
   const [activeTab, setActiveTab] = useState("explorer")
   const [selectedQuiz, setSelectedQuiz] = useState(null)
   const [currentQuestion, setCurrentQuestion] = useState(0)
@@ -99,7 +101,7 @@ export default function QuizApp() {
     const fetchQuizzes = async () => {
       try {
         setLoading(true)
-        const response = await fetch("http://localhost:8080/api/quizzes")
+        const response = await fetch(`${API_BASE_URL}/api/quizzes`)
 
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`)
@@ -159,7 +161,7 @@ export default function QuizApp() {
       // Set new interval to check every 10 seconds
       timeCheckIntervalRef.current = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/check-time`)
+          const response = await fetch(`${API_BASE_URL}/api/quiz-attempts/${currentAttemptId}/check-time`)
 
           if (!response.ok) {
             throw new Error("Failed to check time limit")
@@ -207,8 +209,7 @@ export default function QuizApp() {
       setLoading(true)
 
       // Start a new quiz attempt
-      const response = await fetch(
-        `http://localhost:8080/api/quiz-attempts/start?clerkId=${userId}&quizId=${quiz.id}`,
+      const response = awaitfetch(`${API_BASE_URL}/api/quiz-attempts/start?clerkId=${userId}&quizId=${quiz.id}`,
         {
           method: "POST",
           headers: {
@@ -284,7 +285,7 @@ export default function QuizApp() {
         return acc
       }, {})
 
-      const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/submit`, {
+      const response = await fetch(`${API_BASE_URL}/api/quiz-attempts/${currentAttemptId}/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -328,7 +329,7 @@ export default function QuizApp() {
 
     try {
       // Auto-submit the quiz with the server
-      const response = await fetch(`http://localhost:8080/api/quiz-attempts/${currentAttemptId}/auto-submit`, {
+      const response = await fetch(`${API_BASE_URL}/api/quiz-attempts/${currentAttemptId}/auto-submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

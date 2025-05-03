@@ -47,6 +47,7 @@ export default function CreateQuizForm() {
   const [isLoadingTopics, setIsLoadingTopics] = useState(false)
   const fetchedTopicsRef = useRef(false)
   const [isAIModalOpen, setIsAIModalOpen] = useState(false)
+  const API_BASE_URL = "http://localhost:8081"
 
   const [quizData, setQuizData] = useState({
     title: "",
@@ -84,7 +85,7 @@ export default function CreateQuizForm() {
       console.log("Fetching topics...")
 
       try {
-        const response = await fetch("http://localhost:8080/api/topics", {
+        const response = await fetch(`${API_BASE_URL}/api/topics`, {
           method: "GET",
           headers: {
             Accept: "application/json",
@@ -267,7 +268,7 @@ export default function CreateQuizForm() {
       const professorId = user.id
 
       // Create the request
-      const response = await fetch(`http://localhost:8080/api/quizzes/complete/professor/${professorId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/quizzes/complete/professor/${professorId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -327,7 +328,7 @@ export default function CreateQuizForm() {
     setIsLoadingTopics(true)
 
     try {
-      const response = await fetch("http://localhost:8080/api/topics", {
+      const response = await fetch(`${API_BASE_URL}/api/topics`, {
         method: "GET",
         headers: {
           Accept: "application/json",
