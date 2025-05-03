@@ -209,7 +209,7 @@ export default function QuizApp() {
       setLoading(true)
 
       // Start a new quiz attempt
-      const response = awaitfetch(`${API_BASE_URL}/api/quiz-attempts/start?clerkId=${userId}&quizId=${quiz.id}`,
+      const response = await fetch(`${API_BASE_URL}/api/quiz-attempts/start?clerkId=${userId}&quizId=${quiz.id}`,
         {
           method: "POST",
           headers: {
