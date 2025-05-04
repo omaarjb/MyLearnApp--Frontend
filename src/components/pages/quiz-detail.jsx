@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { BookOpen, Edit, Trash2, Plus, Loader2, ArrowLeft, CheckCircle } from "lucide-react"
+import { BookOpen, Edit, Trash2, Plus, Loader2, ArrowLeft, CheckCircle, BookmarkIcon } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -227,18 +227,28 @@ export default function QuizDetail() {
         <Card className="mb-8 bg-white/80 backdrop-blur-sm dark:bg-gray-800/60 overflow-hidden">
           <CardHeader className={`bg-gradient-to-r ${getSubjectColor(quiz.category || quiz.subject)} text-white`}>
             <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <BookOpen className="h-6 w-6" />
-                </div>
-                {quiz.title}
-              </CardTitle>
+              <div className="flex flex-col">
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <BookOpen className="h-6 w-6" />
+                  </div>
+                  {quiz.title}
+                </CardTitle>
+
+                {/* Topic name display under quiz title */}
+                {quiz.topic && (
+                  <div className="flex items-center gap-2 mt-2 ml-10 text-white/90">
+                    <BookmarkIcon className="h-4 w-4" />
+                    <span className="font-medium">{quiz.topic.name}</span>
+                  </div>
+                )}
+              </div>
               <Button variant="ghost" className="text-white hover:bg-white/20" onClick={handleEditQuiz}>
                 <Edit className="h-5 w-5 mr-2" />
                 Modifier
               </Button>
             </div>
-            <p className="text-white/80 text-lg">{quiz.description}</p>
+            <p className="text-white/80 text-lg mt-3">{quiz.description}</p>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-4">

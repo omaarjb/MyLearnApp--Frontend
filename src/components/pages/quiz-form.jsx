@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { ArrowLeft, Save, Loader2, BookOpen } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 
 // With these constants and functions directly in the component
@@ -35,6 +35,7 @@ export default function QuizForm() {
           throw new Error(`Error: ${response.status}`)
         }
         const data = await response.json()
+        console.log("Quiz data:", data)
         setQuizData(data)
         setError(null)
       } catch (err) {
@@ -149,6 +150,34 @@ export default function QuizForm() {
           <h1 className="text-3xl font-bold">Modifier le Quiz</h1>
         </div>
 
+        {/* Subject Card */}
+        <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/60 mb-6 border-blue-200 dark:border-blue-800">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Sujet</h3>
+                <div className="mt-1">
+                  {quizData.topic ? (
+                    <div>
+                      <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">{quizData.topic.name}</h2>
+                      {quizData.topic.description && (
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">{quizData.topic.description}</p>
+                      )}
+                    </div>
+                  ) : quizData.subject ? (
+                    <h2 className="text-xl font-bold text-blue-600 dark:text-blue-400">{quizData.subject}</h2>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Aucun sujet spécifié</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <form onSubmit={handleSubmit}>
           <Card className="bg-white/80 backdrop-blur-sm dark:bg-gray-800/60">
             <CardHeader>
@@ -172,16 +201,6 @@ export default function QuizForm() {
                   placeholder="Décrivez brièvement le contenu du quiz"
                   value={quizData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  placeholder="Enter the subject of the quiz"
-                  value={quizData.subject}
-                  onChange={(e) => handleInputChange("subject", e.target.value)}
                 />
               </div>
             </CardContent>

@@ -146,21 +146,35 @@ export default function QuizList() {
     setDeleteDialogOpen(true)
   }
 
+  // FIXED DELETE FUNCTION
   const handleDeleteQuiz = async () => {
     if (!quizToDelete || !user) return
 
     try {
       setLoading(true)
-      const response = await fetch(`${API_BASE_URL}/professeur/${user.id}/quizzes/${quizToDelete.id}`, {
+
+      // Construct the URL properly
+      const url = `${API_BASE_URL}/professeur/${user.id}/quizzes/${quizToDelete.id}`
+
+      console.log(`Deleting quiz: ${url}`)
+
+      const response = await fetch(url, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          // Add any authentication headers if needed
+        },
       })
 
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`)
+        const errorData = await response.text()
+        console.error(`Error response: ${response.status}`, errorData)
+        throw new Error(`Error: ${response.status} - ${errorData}`)
       }
 
       // Update the state without refetching
-      setQuizzes(quizzes.filter((quiz) => quiz.id !== quizToDelete.id))
+      setQuizzes((currentQuizzes) => currentQuizzes.filter((quiz) => quiz.id !== quizToDelete.id))
+
       setDeleteDialogOpen(false)
       setQuizToDelete(null)
 
@@ -170,11 +184,11 @@ export default function QuizList() {
       })
     } catch (err) {
       console.error("Error deleting quiz:", err)
-      setError("Erreur lors de la suppression du quiz.")
+      setError(`Erreur lors de la suppression du quiz: ${err.message}`)
 
       toast({
         title: "Erreur",
-        description: "Erreur lors de la suppression du quiz.",
+        description: `Erreur lors de la suppression du quiz: ${err.message}`,
         variant: "destructive",
       })
     } finally {
@@ -225,27 +239,6 @@ export default function QuizList() {
     return <IconComponent className="h-6 w-6" />
   }
 
-  // For testing purposes - show mock data if API fails
-  const displayQuizzes =
-    error && process.env.NODE_ENV === "development"
-      ? [
-          {
-            id: 1,
-            title: "Quiz sur JavaScript",
-            description: "Les bases de JavaScript",
-            subject: "Programmation",
-            questions: [{ id: 1 }, { id: 2 }],
-          },
-          {
-            id: 2,
-            title: "Quiz sur React",
-            description: "Comprendre les concepts de React",
-            subject: "Framework",
-            questions: [{ id: 3 }, { id: 4 }, { id: 5 }],
-          },
-        ]
-      : quizzes
-
   if (!isLoaded) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -282,7 +275,7 @@ export default function QuizList() {
           </div>
         </div>
 
-        {loading && (
+        {loading && quizzes.length === 0 && (
           <div className="flex justify-center items-center py-20">
             <Loader2 className="h-12 w-12 animate-spin text-purple-600" />
           </div>
@@ -298,7 +291,7 @@ export default function QuizList() {
           </div>
         )}
 
-        {!loading && !error && displayQuizzes.length === 0 && (
+        {!loading && !error && quizzes.length === 0 && (
           <div className="text-center py-20">
             <h2 className="text-2xl font-semibold mb-2">Aucun quiz trouvé</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">Vous n'avez pas encore de quiz.</p>
@@ -312,7 +305,7 @@ export default function QuizList() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayQuizzes.map((quiz) => (
+          {quizzes.map((quiz) => (
             <Card
               key={quiz.id}
               className="overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 bg-white/80 backdrop-blur-sm dark:bg-gray-800/60"
@@ -328,14 +321,36 @@ export default function QuizList() {
                 <p className="text-white/80">{quiz.description}</p>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="flex justify-between mb-4">
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                    {quiz.subject}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                  <BookOpen className="h-4 w-4" />
-                  <span>{quiz.questions?.length || 0} questions</span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between">
+                    <Badge
+                      variant="secondary"
+                      className="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                    >
+                      {quiz.category || quiz.subject}
+                    </Badge>
+
+                    {quiz.difficulty && (
+                      <Badge
+                        variant="outline"
+                        className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                      >
+                        {quiz.difficulty}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Topic name display */}
+                  {quiz.topic && (
+                    <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <span className="font-medium">Sujet:</span> {quiz.topic.name}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+                    <BookOpen className="h-4 w-4" />
+                    <span>{quiz.questions?.length || 0} questions</span>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
@@ -372,6 +387,7 @@ export default function QuizList() {
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteQuiz} className="bg-red-500 hover:bg-red-600 text-white">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
