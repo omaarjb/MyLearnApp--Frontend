@@ -20,7 +20,7 @@ import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/hooks/use-toast"
 
 // API base URL
-const API_BASE_URL = "http://localhost:8081/api"
+const API_BASE_URL = "http://localhost:8080/api"
 
 export default function QuizDetail() {
   const router = useRouter()

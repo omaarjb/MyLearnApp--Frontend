@@ -47,7 +47,7 @@ export default function CreateQuizForm() {
   const [isLoadingTopics, setIsLoadingTopics] = useState(false)
   const fetchedTopicsRef = useRef(false)
   const [isAIModalOpen, setIsAIModalOpen] = useState(false)
-  const API_BASE_URL = "http://localhost:8081"
+  const API_BASE_URL = "http://localhost:8080"
 
   const [quizData, setQuizData] = useState({
     title: "",

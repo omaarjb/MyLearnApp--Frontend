@@ -30,7 +30,7 @@ export default function RoleSelectionPage() {
 
     try {
       // 1. First update backend
-      const response = await fetch("http://localhost:8081/api/user/update-role", {
+      const response = await fetch("http://localhost:8080/api/user/update-role", {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

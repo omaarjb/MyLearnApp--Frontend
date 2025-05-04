@@ -30,7 +30,7 @@ export default function AIQuizGenerator({ isOpen, onClose, onQuizGenerated, user
   const [textContent, setTextContent] = useState("")
   const [generationError, setGenerationError] = useState("")
   const { toast } = useToast()
-  const API_BASE_URL = "http://localhost:8081"
+  const API_BASE_URL = "http://localhost:8080"
 
 
   const handleGenerate = async () => {

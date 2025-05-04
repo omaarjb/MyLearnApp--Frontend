@@ -56,7 +56,7 @@ const getIconComponent = (iconName) => {
 }
 
 export default function QuizApp() {
-  const API_BASE_URL = "http://localhost:8081"
+  const API_BASE_URL = "http://localhost:8080"
 
   const [activeTab, setActiveTab] = useState("explorer")
   const [selectedQuiz, setSelectedQuiz] = useState(null)

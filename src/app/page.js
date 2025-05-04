@@ -35,12 +35,12 @@ export default function LandingPage() {
       const userRole = user.unsafeMetadata?.role || ""
       
       if (userRole === "student") {
-        router.push("/quiz")
+        router.push("/accueil")
       } else if (userRole === "professeur") {
-        router.push("/create-quiz")
+        router.push("/accueil")
       } else {
         // Default redirect if role is not set or unknown
-        router.push("/quiz")
+        router.push("/")
       }
     }
   }, [isLoaded, isSignedIn, router, user])

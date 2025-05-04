@@ -19,7 +19,7 @@ export default function StatsPage() {
 
   const grades = ["all", "A", "B", "C", "D", "F"]
 
-  const API_BASE_URL = "http://localhost:8081"
+  const API_BASE_URL = "http://localhost:8080"
 
   // Sample data for when the API is not available
   const sampleQuizData = [
